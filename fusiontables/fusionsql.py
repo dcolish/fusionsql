@@ -69,6 +69,8 @@ import oauth2 as oauth
 import time
 import httplib
 
+from tableformatter import indent
+
 
 def access_resource(oauth_request):
     connection = httplib.HTTPConnection('tables.googlelabs.com')
@@ -106,10 +108,8 @@ oauth_request = oauth.Request.from_consumer_and_token(consumer,
 oauth_request.sign_request(signature_method_hmac_sha1, consumer, token)
 
 try:
-    from tableformatter import indent
     reader = csv.reader(access_resource(oauth_request).splitlines())
     print indent(reader, hasHeader=True)
-
 except Exception, e:
     print e
     raise Exception(e)
