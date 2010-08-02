@@ -10,7 +10,6 @@ see LICENSE for more detail
 """
 
 ## {{{ http://code.activestate.com/recipes/267662/ (r7)
-import operator
 
 
 def indent(rows, hasHeader=False, headerChar='-', delim=' | ',
@@ -28,45 +27,36 @@ def indent(rows, hasHeader=False, headerChar='-', delim=' | ',
        - prefix: A string prepended to each printed row.
        - postfix: A string appended to each printed row.
        """
-    # closure for breaking logical rows to physical, using wrapfunc
-    def rowWrapper(row):
-        newRows = [item.split('\n') for item in row]
-        if len(newRows) > 1:
-            return [[substr or '' for substr in item]
-                    for item in map(None, *newRows)]
-        else:
-            return [[substr or '' for substr in item]
-                    for item in map(None, newRows)]
+    output = []
 
     # break each logical row into one or more physical ones
-    logicalRows = [rowWrapper(row) for row in rows]
+    logicalRows = [item or '' for item in rows]
 
     # columns of physical rows
-    columns = map(None, *reduce(operator.add, logicalRows))
+    columns = map(None, *logicalRows)
 
     # get the maximum of each column by the string length of its items
     maxWidths = [max([len(str(item)) for item in column])
                  for column in columns]
-    rowSeparator = headerChar * (
-        len(prefix) + len(postfix) + sum(maxWidths) + len(delim) * \
-            (len(maxWidths) - 1))
 
     # select the appropriate justify method
     justify = {'center': str.center,
                'right': str.rjust,
                'left': str.ljust}[justify.lower()]
 
-    output = []
+    rowSeparator = headerChar * (
+        len(prefix) + len(postfix) + sum(maxWidths) + len(delim) * \
+            (len(maxWidths) - 1))
+
     if separateRows:
         output += [rowSeparator]
 
-    for physicalRows in logicalRows:
-        for row in physicalRows:
-            output += [prefix +
-                       delim.join([justify(str(item), width)
-                                   for (item, width)
-                                   in zip(row, maxWidths)]) +
-                       postfix]
+    for row in logicalRows:
+        output += [prefix +
+                   delim.join([justify(str(item), width)
+                               for (item, width)
+                               in zip(row, maxWidths)]) + postfix]
+
         if separateRows or hasHeader:
             output += [rowSeparator]
             hasHeader = False
