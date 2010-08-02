@@ -5,6 +5,7 @@ Connection client for FusionTables
 simple client for fusion tables using OAuth
 
 copyright 2010 Dan Colish <dcolish@gmail.com>
+
 See LICENSE for more detail
 """
 

@@ -1,20 +1,20 @@
 """
 Commandline table formatter
 
+Original
 Copyright 2004 George Sakkis
+
+Modified 2010 Dan Colish <dcolish@gmail.com>
+
 see LICENSE for more detail
 """
 
 ## {{{ http://code.activestate.com/recipes/267662/ (r7)
-import cStringIO
-import math
 import operator
-import re
 
 
 def indent(rows, hasHeader=False, headerChar='-', delim=' | ',
-           justify='left', separateRows=False, prefix='', postfix='',
-           wrapfunc=lambda x: x):
+           justify='left', separateRows=False, prefix='', postfix=''):
     """Indents a table by column.
        - rows: A sequence of sequences of items, one sequence per row.
        - hasHeader: True if the first row consists of the columns' names.
@@ -27,13 +27,16 @@ def indent(rows, hasHeader=False, headerChar='-', delim=' | ',
          of 'headerChar's.
        - prefix: A string prepended to each printed row.
        - postfix: A string appended to each printed row.
-       - wrapfunc: A function f(text) for wrapping text; each element in
-         the table is first wrapped by this function."""
+       """
     # closure for breaking logical rows to physical, using wrapfunc
     def rowWrapper(row):
-        newRows = [wrapfunc(item).split('\n') for item in row]
-        return [[substr or '' for substr in item]
-                for item in map(None, *newRows)]
+        newRows = [item.split('\n') for item in row]
+        if len(newRows) > 1:
+            return [[substr or '' for substr in item]
+                    for item in map(None, *newRows)]
+        else:
+            return [[substr or '' for substr in item]
+                    for item in map(None, newRows)]
 
     # break each logical row into one or more physical ones
     logicalRows = [rowWrapper(row) for row in rows]
@@ -53,130 +56,19 @@ def indent(rows, hasHeader=False, headerChar='-', delim=' | ',
                'right': str.rjust,
                'left': str.ljust}[justify.lower()]
 
-    output = cStringIO.StringIO()
-
+    output = []
     if separateRows:
-        print >> output, rowSeparator
+        output += [rowSeparator]
+
     for physicalRows in logicalRows:
         for row in physicalRows:
-            print >> output, \
-                prefix \
-                + delim.join([justify(str(item), width)
-                              for (item, width) in zip(row, maxWidths)]) \
-                + postfix
+            output += [prefix +
+                       delim.join([justify(str(item), width)
+                                   for (item, width)
+                                   in zip(row, maxWidths)]) +
+                       postfix]
         if separateRows or hasHeader:
-            print >> output, rowSeparator
+            output += [rowSeparator]
             hasHeader = False
 
-    return output.getvalue()
-
-
-def wrap_onspace(text, width):
-    """
-    wrap_onspace
-    ============
-    A word-wrap function that preserves existing line breaks
-    and most spaces in the text. Expects that existing line
-    breaks are posix newlines (\n).
-
-    copyright 2002 Mike Brown
-    see LICENSE for more detail
-    http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/148061
-    """
-    return reduce(lambda line, word, width=width: '%s%s%s' %
-                  (line, ' \n'[(len(line[line.rfind('\n') + 1:])
-                         + len(word.split('\n', 1)[0]) >= width)], word),
-                  text.split(' '),
-                 )
-
-
-def wrap_onspace_strict(text, width):
-    """Similar to wrap_onspace, but enforces the width constraint:
-       words longer than width are split."""
-
-    wordRegex = re.compile(r'\S{' + str(width) + r',}')
-    return wrap_onspace(wordRegex.sub(
-            lambda m: wrap_always(m.group(), width), text), width)
-
-
-def wrap_always(text, width):
-    """A simple word-wrap function that wraps text on exactly width characters.
-       It doesn't split the text in words."""
-    return '\n'.join([
-            text[width * i: width * (i + 1)]
-            for i in xrange(int(math.ceil(1. * len(text) / width)))])
-
-
-if __name__ == '__main__':
-    labels = ('First Name', 'Last Name', 'Age', 'Position')
-    data = \
-    '''John,Smith,24,Software Engineer
-       Mary,Brohowski,23,Sales Manager
-       Aristidis,Papageorgopoulos,28,Senior Reseacher'''
-    rows = [row.strip().split(',')  for row in data.splitlines()]
-
-    print 'Without wrapping function\n'
-    print indent([labels] + rows, hasHeader=True)
-    # test indent with different wrapping functions
-    width = 10
-    for wrapper in (wrap_always, wrap_onspace, wrap_onspace_strict):
-        print 'Wrapping function: %s(x,width=%d)\n' % (wrapper.__name__, width)
-        print indent([labels] + rows, hasHeader=True, separateRows=True,
-                     prefix='| ', postfix=' |',
-                     wrapfunc=lambda x: wrapper(x, width))
-
-    # output:
-    #
-    #Without wrapping function
-    #
-    #First Name | Last Name        | Age | Position
-    #-------------------------------------------------------
-    #John       | Smith            | 24  | Software Engineer
-    #Mary       | Brohowski        | 23  | Sales Manager
-    #Aristidis  | Papageorgopoulos | 28  | Senior Reseacher
-    #
-    #Wrapping function: wrap_always(x,width=10)
-    #
-    #----------------------------------------------
-    #| First Name | Last Name  | Age | Position   |
-    #----------------------------------------------
-    #| John       | Smith      | 24  | Software E |
-    #|            |            |     | ngineer    |
-    #----------------------------------------------
-    #| Mary       | Brohowski  | 23  | Sales Mana |
-    #|            |            |     | ger        |
-    #----------------------------------------------
-    #| Aristidis  | Papageorgo | 28  | Senior Res |
-    #|            | poulos     |     | eacher     |
-    #----------------------------------------------
-    #
-    #Wrapping function: wrap_onspace(x,width=10)
-    #
-    #---------------------------------------------------
-    #| First Name | Last Name        | Age | Position  |
-    #---------------------------------------------------
-    #| John       | Smith            | 24  | Software  |
-    #|            |                  |     | Engineer  |
-    #---------------------------------------------------
-    #| Mary       | Brohowski        | 23  | Sales     |
-    #|            |                  |     | Manager   |
-    #---------------------------------------------------
-    #| Aristidis  | Papageorgopoulos | 28  | Senior    |
-    #|            |                  |     | Reseacher |
-    #---------------------------------------------------
-    #
-    #Wrapping function: wrap_onspace_strict(x,width=10)
-    #
-    #---------------------------------------------
-    #| First Name | Last Name  | Age | Position  |
-    #---------------------------------------------
-    #| John       | Smith      | 24  | Software  |
-    #|            |            |     | Engineer  |
-    #---------------------------------------------
-    #| Mary       | Brohowski  | 23  | Sales     |
-    #|            |            |     | Manager   |
-    #---------------------------------------------
-    #| Aristidis  | Papageorgo | 28  | Senior    |
-    #|            | poulos     |     | Reseacher |
-    #---------------------------------------------
-## end of http://code.activestate.com/recipes/267662/ }}}
+    return '\n'.join(output)
