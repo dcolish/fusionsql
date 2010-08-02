@@ -83,7 +83,7 @@ class FusionSQL(object):
 
             if pprint:
                 reader = csv.reader(response)
-                return indent(reader, hasHeader=True)
+                return indent([x for x in reader], hasHeader=True)
             else:
                 return csv.DictReader(response)
         except Exception, e:
