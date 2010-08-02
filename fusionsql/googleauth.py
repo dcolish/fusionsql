@@ -1,3 +1,8 @@
+# Copyright 2010 Dan Colish
+# All rights reserved.
+#
+# This file is part of 'fusionsql' and is distributed under the BSD license.
+# See LICENSE for more details.
 """
 Google OAuth Client
 ===================
