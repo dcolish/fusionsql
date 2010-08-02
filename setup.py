@@ -6,17 +6,20 @@ Client for connecting with google Fusion Tables
 
 copyright 2010 Dan Colish <dcolish@gmail.com>
 See LICENSE for more detail
+
+* `development version
+  <http://github.com/dcolish/fusionsql/zipball/master#egg=fusionsql-dev>`_
 """
 from setuptools import setup, find_packages
 
 setup(name="fusiontables",
       version="dev",
       packages=find_packages(),
-      namespace_packages=['fusiontables'],
+      namespace_packages=['fusionsql'],
       include_package_data=True,
       author='Dan Colish',
       author_email='dcolish@gmail.com',
-      description='Fusion Tables Client',
+      description='Fusion Tables SQL Client',
       long_description=__doc__,
       zip_safe=False,
       platforms='any',
@@ -37,7 +40,7 @@ setup(name="fusiontables",
 
       entry_points={
         'console_scripts': [
-            'fusionsql=fusionsql.fusionsql:start_cli',
+            'fusionsql=fusionsql.client:start_cli',
             ],
         },
 
