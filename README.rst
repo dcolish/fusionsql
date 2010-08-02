@@ -10,5 +10,5 @@ For commands see the documetation at `Google`_
 
 Code is available on `github`_
 
-_ `github`: http://github.com/dcolish/python-fusion-tables
-_ `Google`: http://code.google.com/apis/fusiontables/docs/developers_guide.html
+.. _`github`: http://github.com/dcolish/python-fusion-tables
+.. _`Google`: http://code.google.com/apis/fusiontables/docs/developers_guide.html
