@@ -10,7 +10,7 @@ See LICENSE for more detail
 
 import csv
 from ConfigParser import SafeConfigParser
-from  oauth2 import (
+from oauth2 import (
     Consumer,
     generate_nonce,
     Request,

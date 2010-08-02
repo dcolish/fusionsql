@@ -5,6 +5,7 @@ FusionSQL
 Client for connecting with google Fusion Tables
 
 copyright 2010 Dan Colish <dcolish@gmail.com>
+
 See LICENSE for more detail
 
 * `development version
@@ -12,7 +13,7 @@ See LICENSE for more detail
 """
 from setuptools import setup, find_packages
 
-setup(name="fusiontables",
+setup(name="fusionsql",
       version="dev",
       packages=find_packages(),
       namespace_packages=['fusionsql'],
@@ -24,16 +25,14 @@ setup(name="fusiontables",
       zip_safe=False,
       platforms='any',
       license='BSD',
-      url='http://www.github.com/dcolish/python-fusion-tables',
+      url='http://www.github.com/dcolish/fusionsql',
 
       classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Environment :: Console',
-        'Intended Audience :: Education',
+        'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Operating System :: Unix',
         ],
