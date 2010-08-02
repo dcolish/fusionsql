@@ -2,114 +2,140 @@
 Connection client for FusionTables
 ==================================
 
-simple connector for fusion tables using OAuth,
+simple client for fusion tables using OAuth
 
-Modifications and additions, copyright 2010 Dan Colish
-
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
-
-Redistributions of source code must retain the above copyright notice, this list
-of conditions and the following disclaimer.  
-
-Redistributions in binary form must reproduce the above copyright notice, this
-list of conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.
-
-Neither the name of the Dan Colish nor the names of its contributors may be used
-to endorse or promote products derived from this software without specific prior
-written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-I borrowed a lot from the older `OAuth example`_ which is copyright 2007 Leah
-Culver
-
-The MIT License
-
-Copyright (c) 2007 Leah Culver
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-.. _`OAuth Example`: http://github.com/simplegeo/python-oauth2/blob/master/example/client.py
-
+copyright 2010 Dan Colish <dcolish@gmail.com>
+See LICENSE for more detail
 """
+
 import csv
 from ConfigParser import SafeConfigParser
-from sys import argv
-import oauth2 as oauth
+from  oauth2 import (
+    Consumer,
+    generate_nonce,
+    Request,
+    SignatureMethod_HMAC_SHA1,
+    Token,
+)
+import readline
 import time
+from os.path import expanduser
 import httplib
-
+import atexit
+from itertools import ifilter
 from tableformatter import indent
 
 
-def access_resource(oauth_request):
-    connection = httplib.HTTPConnection('tables.googlelabs.com')
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    connection.request('POST', '/api/query',
-                       body=oauth_request.to_postdata(), headers=headers)
-    response = connection.getresponse()
-    return response.read()
+class FusionSQL(object):
+
+    params = {
+        'oauth_version': "1.0",
+        'oauth_nonce': generate_nonce(),
+        'oauth_timestamp': int(time.time()),
+        }
+    signature_method_hmac_sha1 = SignatureMethod_HMAC_SHA1()
+    url = 'http://tables.googlelabs.com/api/query'
+    config = SafeConfigParser()
+    tables = {}
+
+    def __init__(self):
+        self.config.read('auth.cfg')
+        if not self.config.sections():
+            from googleauth import GoogleOauth
+            gauth = GoogleOauth()
+            gauth.authorize(self.url)
+            self.config.read('auth.cfg')
+
+        self.token = Token(key=self.config.get('auth', 'oauth_token'),
+                                 secret=self.config.get('auth',
+                                                   'oauth_token_secret'))
+        self.consumer = Consumer(key="anonymous", secret="anonymous")
+
+        self.params['oauth_token'] = self.token.key
+        self.params['oauth_consumer_key'] = self.consumer.key
+
+    def access_resource(self, oauth_request):
+        connection = httplib.HTTPConnection('tables.googlelabs.com')
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        connection.request('POST', '/api/query',
+                           body=oauth_request.to_postdata(), headers=headers)
+        response = connection.getresponse()
+        if response.status == 200:
+            return response.read()
+        else:
+            raise Exception("Response: %d" % response.status)
+
+    def query(self, query, pprint=False):
+        self.params.update(**dict(sql=query))
+        oauth_request = Request.from_consumer_and_token(self.consumer,
+                                                        token=self.token,
+                                                        http_method='POST',
+                                                        http_url=self.url,
+                                                        parameters=self.params)
+        oauth_request.sign_request(self.signature_method_hmac_sha1,
+                                   self.consumer, self.token)
+        return self.parse(self.access_resource(oauth_request).splitlines(),
+                          pprint)
+
+    def parse(self, response, pprint):
+        try:
+
+            if pprint:
+                reader = csv.reader(response)
+                return indent(reader, hasHeader=True)
+            else:
+                return csv.DictReader(response)
+        except Exception, e:
+            print e
+            raise Exception(e)
+
+    def build_tables(self):
+        for table in self.query("SHOW TABLES"):
+            table_columns = self.query("DESCRIBE %s" % table['table id'])
+            table_attrs = {'name': table['name'],
+                           'columns': list(x for x in table_columns)}
+            self.tables.update({table['table id']: table_attrs})
 
 
-config = SafeConfigParser()
-config.read('fusiontable.cfg')
+class CompleteSQL(object):
+    words = ['SELECT', 'INSERT', 'FROM', 'INTO', 'VALUES', 'TABLE',
+             'DELETE', 'UPDATE', 'LIMIT', 'ORDER BY', 'GROUP BY', 'WHERE'
+             'AND', 'OR', 'SET', 'ASC', 'DESC', 'OFFSET', 'CREATE', 'SHOW',
+             'TABLES', 'DESCRIBE', 'DROP']
 
-token = oauth.Token(key=config.get('auth', 'oauth_token'),
-                    secret=config.get('auth', 'oauth_token_secret'))
-consumer = oauth.Consumer(key="anonymous", secret="anonymous")
-signature_method_hmac_sha1 = oauth.SignatureMethod_HMAC_SHA1()
-url = 'http://tables.googlelabs.com/api/query'
+    def __init__(self, tables=None):
+        self.tables = tables
 
-params = {
-    'oauth_version': "1.0",
-    'oauth_nonce': oauth.generate_nonce(),
-    'oauth_timestamp': int(time.time()),
-}
+    def complete(self, text, state):
+        suggestions = map(lambda x: x + " ",
+                     ifilter(lambda x: x.startswith(text),
+                              self.words + self.tables)) + [None]
+        return suggestions[state]
 
-params['oauth_token'] = token.key
-params['oauth_consumer_key'] = consumer.key
-params.update(**dict(sql=argv[1:].pop()))
 
-oauth_request = oauth.Request.from_consumer_and_token(consumer,
-                                                           token=token,
-                                                           http_method='POST',
-                                                           http_url=url,
-                                                           parameters=params)
-oauth_request.sign_request(signature_method_hmac_sha1, consumer, token)
+def write_hist(filename):
+    readline.write_history_file(filename)
 
-try:
-    reader = csv.reader(access_resource(oauth_request).splitlines())
-    print indent(reader, hasHeader=True)
-except Exception, e:
-    print e
-    raise Exception(e)
+
+def start_cli():
+    sqler = FusionSQL()
+    sqler.build_tables()
+    readline.parse_and_bind("tab: complete")
+    readline.set_completer(CompleteSQL(sqler.tables.keys()).complete)
+    atexit.register(write_hist, expanduser("~/.fusionsql.history"))
+
+    try:
+        readline.read_history_file(expanduser("~/.fusionsql.history"))
+    except IOError:
+        pass
+
+    try:
+        while True:
+            query = raw_input("> ")
+            print sqler.query(query, True)
+    except EOFError:
+        print
+
+
+if __name__ == '__main__':
+    start_cli()

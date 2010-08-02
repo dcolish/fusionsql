@@ -1,3 +1,10 @@
+"""
+Commandline table formatter
+
+Copyright 2004 George Sakkis
+see LICENSE for more detail
+"""
+
 ## {{{ http://code.activestate.com/recipes/267662/ (r7)
 import cStringIO
 import math
@@ -64,13 +71,17 @@ def indent(rows, hasHeader=False, headerChar='-', delim=' | ',
     return output.getvalue()
 
 
-# written by Mike Brown
-# http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/148061
 def wrap_onspace(text, width):
     """
+    wrap_onspace
+    ============
     A word-wrap function that preserves existing line breaks
     and most spaces in the text. Expects that existing line
     breaks are posix newlines (\n).
+
+    copyright 2002 Mike Brown
+    see LICENSE for more detail
+    http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/148061
     """
     return reduce(lambda line, word, width=width: '%s%s%s' %
                   (line, ' \n'[(len(line[line.rfind('\n') + 1:])
