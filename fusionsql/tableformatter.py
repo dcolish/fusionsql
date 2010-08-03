@@ -30,7 +30,7 @@ def indent(rows, hasHeader=False, headerChar='-', delim=' | ',
     output = []
 
     # get the maximum of each column by the string length of its items
-    maxWidths = [len(max(column)) for column in zip(*rows)]
+    maxWidths = [max(map(len, column)) for column in zip(*rows)]
 
     # select the appropriate justify method
     justify = {'center': str.center,
@@ -46,9 +46,8 @@ def indent(rows, hasHeader=False, headerChar='-', delim=' | ',
 
     for row in rows:
         output += [prefix +
-                   delim.join([justify(item, width) for item, width
-                               in zip(row, maxWidths)])
-                   + postfix]
+                   delim.join([justify(str(item), width) for (item, width)
+                               in zip(row, maxWidths)]) + postfix]
 
         if separateRows or hasHeader:
             output += [rowSeparator]
