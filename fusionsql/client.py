@@ -138,7 +138,8 @@ def start_cli():
     try:
         while True:
             query = raw_input("> ")
-            print sqler.query(query, True)
+            if query:
+                print sqler.query(query, True)
     except EOFError:
         print
 
