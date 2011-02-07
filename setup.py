@@ -44,7 +44,7 @@ setup(name="fusionsql",
 
       entry_points={
         'console_scripts': [
-            'fusionsql=fusionsql.client:start_cli',
+            'fusionsql=fusionsql.client:run_cli',
             ],
         },
 

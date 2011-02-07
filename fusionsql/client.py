@@ -15,11 +15,15 @@ See LICENSE for more detail
 """
 
 import atexit
+import csv
 from itertools import ifilter
 from os.path import expanduser
 import readline
 
-from .driver import FusionSQL, QueryException
+from tableformatter import indent
+
+from .driver import connect
+from .exception import DatabaseError, OperationalError
 
 
 class CompleteSQL(object):
@@ -38,33 +42,62 @@ class CompleteSQL(object):
         return suggestions[state]
 
 
-def write_hist(filename):
-    readline.write_history_file(filename)
+class FusionClient(object):
+    def __init__(self, histfile="~/.fusionsql.history"):
+        self.histfile = expanduser(histfile)
 
+    def write_hist(self, filename):
+        readline.write_history_file(filename)
 
-def start_cli():
-    sqler = FusionSQL()
-    sqler.build_tables()
-    readline.parse_and_bind("tab: complete")
-    readline.set_completer(CompleteSQL(sqler.tables.keys()).complete)
-    atexit.register(write_hist, expanduser("~/.fusionsql.history"))
+    def parse(self, response, pprint):
+        try:
+            if pprint:
+                reader = csv.reader(response)
+                return indent([x for x in reader], hasHeader=True)
+            else:
+                return csv.DictReader(response)
+        except Exception, e:
+            print e
+            raise Exception(e)
 
-    try:
-        readline.read_history_file(expanduser("~/.fusionsql.history"))
-    except IOError:
-        pass
+    def run(self):
+        sqler = connect("dsn")
+        sqler.build_tables()
+        readline.parse_and_bind("tab: complete")
+        readline.set_completer(CompleteSQL(sqler.tables.keys()).complete)
+        atexit.register(self.cleanup)
+        cur = sqler.cursor()
 
-    try:
+        try:
+            readline.read_history_file(expanduser(self.histfile))
+        except IOError:
+            pass
+
         while True:
-            query = raw_input("> ")
+            try:
+                query = raw_input("> ")
+            except EOFError:
+                break
+            except KeyboardInterrupt:
+                break
+
             if query:
                 try:
-                    print sqler.query(query, True)
-                except QueryException, e:
+                    print self.parse(cur.execute(query), True)
+                except DatabaseError, e:
                     print e
-    except EOFError:
+                except OperationalError, e:
+                    print e
+
+    def cleanup(self):
+        self.write_hist(self.histfile)
         print
 
 
+def run_cli():
+    client = FusionClient("~/.fusionsql.history")
+    client.run()
+
+
 if __name__ == '__main__':
-    start_cli()
+    run_cli()
